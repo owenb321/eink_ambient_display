@@ -8,28 +8,36 @@ esphome:
   on_boot:
     priority: -100
     then:
+      - component.update: sntp_time
       - wait_until:
-          mqtt.connected:
+          condition:
+            mqtt.connected:
+          timeout: 60s
+      # Turn off if mqtt connection isn't established
+      - if:
+          condition:
+            not:
+              mqtt.connected:
+          then:
+            - switch.turn_on: tpl5111_done
       # Wait for some valid temp data
       - wait_until:
           sensor.in_range:
             id: outdoor_temperature
             above: -460
       - delay: 1s
-      - component.update: sntp_time
       - component.update: battery_voltage
-      # Give some time to get the rest of the mqtt data
+      - wait_until:
+          time.has_time:
       - component.update: epaper_display
       # Wait for display update cycle
       - delay: 6s
       # Go back to sleep once display has updated
       - if:
           condition:
-            binary_sensor.is_on: ota_mode
+            binary_sensor.is_off: ota_mode
           then:
-            - deep_sleep.prevent: deep_sleep_1
-          else:
-            - deep_sleep.enter: deep_sleep_1
+            - switch.turn_on: tpl5111_done
 
 wifi:
   ssid: "ssid"
@@ -48,26 +56,17 @@ mqtt:
   topic_prefix: waveshare_display
   
 ota:
+  safe_mode: false
 
-deep_sleep:
-  run_duration: 60s
-  sleep_duration: 30min
-  wakeup_pin:
-    number: 14
-    inverted: True
-    mode: INPUT_PULLUP
-  id: deep_sleep_1
-
-time:
-  - platform: sntp
-    id: sntp_time
-    timezone: America/New_York
-
-# Epaper display doesn't turn back on
-#   after deep sleep while on lipo power 
-#   unless this switch is defined.
-#   Not sure why!
 switch:
+  - platform: gpio
+    pin: 27
+    id: tpl5111_done
+    restore_mode: ALWAYS_OFF
+  # Epaper display doesn't turn back on
+  #   after sleep while on lipo power 
+  #   unless this switch is defined.
+  #   Not sure why!
   - platform: gpio
     pin:
       number: 21
@@ -76,17 +75,16 @@ switch:
     internal: true
     name: "Display Reset Pin"
 
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: America/New_York
+
 binary_sensor:
   - platform: template
     name: "OTA Mode"
     id: ota_mode
     internal: true
-    on_state:
-      - if:
-          condition:
-            binary_sensor.is_on: ota_mode
-          then:
-            - deep_sleep.prevent: deep_sleep_1
   - platform: template
     name: "Sleep Mode"
     id: sleep_mode
@@ -96,7 +94,7 @@ binary_sensor:
           condition:
             binary_sensor.is_on: sleep_mode
           then:
-            - deep_sleep.enter: deep_sleep_1
+            - switch.turn_on: tpl5111_done
   - platform: template
     name: "Show QR Code"
     id: show_qr_code
@@ -194,7 +192,7 @@ text_sensor:
     on_value:
       then:
         - binary_sensor.template.publish:
-            id: sleep_mode
+            id: ota_mode
             state: !lambda 'return id(ota_mode_payload).state == "on";'
   - platform: mqtt_subscribe
     name: "Sleep Mode Payload"
@@ -443,6 +441,8 @@ image:
     id: wifi_alert_large
   - file: "icon-bmp/notification-large/battery-low.bmp"
     id: battery_low_large
+  - file: "icon-bmp/notification-large/tumble-dryer-alert.bmp"
+    id: tumble_dryer_alert_large
   # Notification Medium
   - file: "icon-bmp/notification-med/dishwasher-alert.bmp"
     id: dishwasher_alert_med
@@ -462,6 +462,8 @@ image:
     id: wifi_alert_med
   - file: "icon-bmp/notification-med/battery-low.bmp"
     id: battery_low_med
+  - file: "icon-bmp/notification-med/tumble-dryer-alert.bmp"
+    id: tumble_dryer_alert_med
   # Notification Small
   - file: "icon-bmp/notification-small/dishwasher-alert.bmp"
     id: dishwasher_alert_small
@@ -481,6 +483,8 @@ image:
     id: wifi_alert_small
   - file: "icon-bmp/notification-small/battery-low.bmp"
     id: battery_low_small
+  - file: "icon-bmp/notification-small/tumble-dryer-alert.bmp"
+    id: tumble_dryer_alert_small
   # Other icons
   - file: "icon-bmp/weather-small/wind-small.bmp"
     id: wind_small
@@ -544,7 +548,7 @@ display:
     model: 7.50inV2
     spi_id: waveshare_spi
     update_interval: never
-    reset_duration: 2
+    reset_duration: 2ms
     lambda: |-
       // Skip draw if values aren't ready
       if( isnan(id(outdoor_temperature).raw_state) )
@@ -628,7 +632,7 @@ display:
         windy_variant_small,
         windy_small
       };
-      #define notification_type_count 9
+      #define notification_type_count 10
       esphome::display::Image* notification_icon_map[notification_type_count*3] = {
         trash_can_outline_large,
         dump_truck_large,
@@ -639,6 +643,7 @@ display:
         dog_bowl_large,
         wifi_alert_large,
         battery_low_large,
+        tumble_dryer_alert_large,
 
         trash_can_outline_med,
         dump_truck_med,
@@ -649,6 +654,7 @@ display:
         dog_bowl_med,
         wifi_alert_med,
         battery_low_med,
+        tumble_dryer_alert_med,
 
         trash_can_outline_small,
         dump_truck_small,
@@ -658,7 +664,8 @@ display:
         dishwasher_alert_small,
         dog_bowl_small,
         wifi_alert_small,
-        battery_low_small
+        battery_low_small,
+        tumble_dryer_alert_small
       };
       
       // Center divider

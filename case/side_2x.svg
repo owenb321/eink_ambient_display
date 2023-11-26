@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32.18000030517578mm" height="123.19999694824219mm" viewBox="0 0 32.18000030517578 123.19999694824219">
+<desc>Created with Glowforge for Fusion 360. To download visit: https://cam.autodesk.com/hsmposts?p=glowforge</desc>
+<!-- CAM Setup Info:
+Work Area Width: 32.18000030517578mm
+Work Area Height: 123.19999694824219mm
+Work Area Too Small?: false
+Stock box Upper Right: 14.09000015258789,59.599998474121094
+Stock box Lower Left: -14.09000015258789,-59.599998474121094
+Origin: 0,0
+Selected Colors: #0000d3, #02abea, #1fb714, #dd0907, #f20884, #fbf305
+-->
+<g id="global-translation-frame" transform="translate(16.09, 61.6) scale(1, -1)">
+<g id="opperation-1">
+    <title>2D Profile4 (Op: 1/1)</title>
+    <path d="M -8.026 13.8
+             L -8.81 13.8
+             L -8.81 -13.8
+             L -6.01 -13.8
+             L -6.01 13.8
+             L -8.026 13.8
+             M -13.19 13.587
+             L -13.19 18.533
+             A 0.1 0.1 0 0 0 -13.09 18.633
+             L -10.19 18.633
+             L -10.19 58.6
+             A 0.1 0.1 0 0 0 -10.09 58.7
+             L 13.09 58.7
+             A 0.1 0.1 0 0 0 13.19 58.6
+             L 13.19 48.65
+             A 0.1 0.1 0 0 0 13.09 48.55
+             L 10.19 48.55
+             L 10.19 18.633
+             L 13.09 18.633
+             A 0.1 0.1 0 0 0 13.19 18.533
+             L 13.19 -18.533
+             A 0.1 0.1 0 0 0 13.09 -18.633
+             L 10.19 -18.633
+             L 10.19 -48.55
+             L 13.09 -48.55
+             A 0.1 0.1 0 0 0 13.19 -48.65
+             L 13.19 -58.6
+             A 0.1 0.1 0 0 0 13.09 -58.7
+             L -10.09 -58.7
+             A 0.1 0.1 0 0 0 -10.19 -58.6
+             L -10.19 -18.633
+             L -13.09 -18.633
+             A 0.1 0.1 0 0 0 -13.19 -18.533
+             L -13.19 13.587" fill="none" stroke="#0000d3" stroke-width="0.1"/>
+</g>
+</g>
+</svg>
