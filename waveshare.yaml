@@ -191,7 +191,7 @@ binary_sensor:
 sensor:
   - platform: adc
     pin: A13
-    attenuation: 11db
+    attenuation: 12db
     name: "ePaper Battery Voltage"
     id: battery_voltage
     filters:
@@ -345,200 +345,295 @@ image:
   # Weather conditions
   - file: "icon-bmp/weather/clear-night.bmp"
     id: clear_night
+    type: BINARY
   - file: "icon-bmp/weather/cloudy.bmp"
     id: cloudy
+    type: BINARY
   - file: "icon-bmp/weather/exceptional.bmp"
     id: exceptional
+    type: BINARY
   - file: "icon-bmp/weather/fog.bmp"
     id: fog
+    type: BINARY
   - file: "icon-bmp/weather/hail.bmp"
     id: hail
+    type: BINARY
   - file: "icon-bmp/weather/lightning-rainy.bmp"
     id: lightning_rainy
+    type: BINARY
   - file: "icon-bmp/weather/lightning.bmp"
     id: lightning
+    type: BINARY
   - file: "icon-bmp/weather/partlycloudy-day.bmp"
     id: partlycloudy_day
+    type: BINARY
   - file: "icon-bmp/weather/partlycloudy-night.bmp"
     id: partlycloudy_night
+    type: BINARY
   - file: "icon-bmp/weather/pouring.bmp"
     id: pouring
+    type: BINARY
   - file: "icon-bmp/weather/rainy.bmp"
     id: rainy
+    type: BINARY
   - file: "icon-bmp/weather/snowy-rainy.bmp"
     id: snowy_rainy
+    type: BINARY
   - file: "icon-bmp/weather/snowy.bmp"
     id: snowy
+    type: BINARY
   - file: "icon-bmp/weather/sunny.bmp"
     id: sunny
+    type: BINARY
   - file: "icon-bmp/weather/windy-variant.bmp"
     id: windy_variant
+    type: BINARY
   - file: "icon-bmp/weather/windy.bmp"
     id: windy
+    type: BINARY
   # Small weather condition icons
   - file: "icon-bmp/weather-small/clear-night-small.bmp"
     id: clear_night_small
+    type: BINARY
   - file: "icon-bmp/weather-small/cloudy-small.bmp"
     id: cloudy_small
+    type: BINARY
   - file: "icon-bmp/weather-small/exceptional-small.bmp"
     id: exceptional_small
+    type: BINARY
   - file: "icon-bmp/weather-small/fog-small.bmp"
     id: fog_small
+    type: BINARY
   - file: "icon-bmp/weather-small/hail-small.bmp"
     id: hail_small
+    type: BINARY
   - file: "icon-bmp/weather-small/lightning-rainy-small.bmp"
     id: lightning_rainy_small
+    type: BINARY
   - file: "icon-bmp/weather-small/lightning-small.bmp"
     id: lightning_small
+    type: BINARY
   - file: "icon-bmp/weather-small/partlycloudy-day-small.bmp"
     id: partlycloudy_day_small
+    type: BINARY
   - file: "icon-bmp/weather-small/partlycloudy-night-small.bmp"
     id: partlycloudy_night_small
+    type: BINARY
   - file: "icon-bmp/weather-small/pouring-small.bmp"
     id: pouring_small
+    type: BINARY
   - file: "icon-bmp/weather-small/rainy-small.bmp"
     id: rainy_small
+    type: BINARY
   - file: "icon-bmp/weather-small/snowy-rainy-small.bmp"
     id: snowy_rainy_small
+    type: BINARY
   - file: "icon-bmp/weather-small/snowy-small.bmp"
     id: snowy_small
+    type: BINARY
   - file: "icon-bmp/weather-small/sunny-small.bmp"
     id: sunny_small
+    type: BINARY
   - file: "icon-bmp/weather-small/windy-variant-small.bmp"
     id: windy_variant_small
+    type: BINARY
   - file: "icon-bmp/weather-small/windy-small.bmp"
     id: windy_small
+    type: BINARY
   # Event icons
   - file: "icon-bmp/events/baby-carriage.bmp"
     id: baby_carriage
+    type: BINARY
   - file: "icon-bmp/events/bone.bmp"
     id: bone
+    type: BINARY
   - file: "icon-bmp/events/cake-variant.bmp"
     id: cake_variant
+    type: BINARY
   - file: "icon-bmp/events/calendar.bmp"
     id: calendar
+    type: BINARY
   - file: "icon-bmp/events/clover.bmp"
     id: clover
+    type: BINARY
   - file: "icon-bmp/events/egg-easter.bmp"
     id: egg_easter
+    type: BINARY
   - file: "icon-bmp/events/flag.bmp"
     id: flag
+    type: BINARY
   - file: "icon-bmp/events/football.bmp"
     id: football
+    type: BINARY
   - file: "icon-bmp/events/halloween.bmp"
     id: halloween
+    type: BINARY
   - file: "icon-bmp/events/heart-multiple.bmp"
     id: heart_multiple
+    type: BINARY
   - file: "icon-bmp/events/heart.bmp"
     id: heart
+    type: BINARY
   - file: "icon-bmp/events/history.bmp"
     id: history
+    type: BINARY
   - file: "icon-bmp/events/history2.bmp"
     id: history2
+    type: BINARY
   - file: "icon-bmp/events/microphone.bmp"
     id: microphone
+    type: BINARY
   - file: "icon-bmp/events/mother-heart.bmp"
     id: mother_heart
+    type: BINARY
   - file: "icon-bmp/events/mustache.bmp"
     id: mustache
+    type: BINARY
   - file: "icon-bmp/events/party-popper.bmp"
     id: party_popper
+    type: BINARY
   - file: "icon-bmp/events/pine-tree.bmp"
     id: pine_tree
+    type: BINARY
   - file: "icon-bmp/events/shield-star.bmp"
     id: shield_star
+    type: BINARY
   - file: "icon-bmp/events/shovel.bmp"
     id: shovel
+    type: BINARY
   - file: "icon-bmp/events/star.bmp"
     id: star
+    type: BINARY
   - file: "icon-bmp/events/taco.bmp"
     id: taco
+    type: BINARY
   - file: "icon-bmp/events/turkey.bmp"
     id: turkey
+    type: BINARY
   # Notification Large
   - file: "icon-bmp/notification-large/dishwasher-alert.bmp"
     id: dishwasher_alert_large
+    type: BINARY
   - file: "icon-bmp/notification-large/dog-bowl.bmp"
     id: dog_bowl_large
+    type: BINARY
   - file: "icon-bmp/notification-large/dump-truck.bmp"
     id: dump_truck_large
+    type: BINARY
   - file: "icon-bmp/notification-large/recycle.bmp"
     id: recycle_large
+    type: BINARY
   - file: "icon-bmp/notification-large/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_large
+    type: BINARY
   - file: "icon-bmp/notification-large/trash-can-outline.bmp"
     id: trash_can_outline_large
+    type: BINARY
   - file: "icon-bmp/notification-large/washing-machine-alert.bmp"
     id: washing_machine_alert_large
+    type: BINARY
   - file: "icon-bmp/notification-large/wifi-alert.bmp"
     id: wifi_alert_large
+    type: BINARY
   - file: "icon-bmp/notification-large/battery-low.bmp"
     id: battery_low_large
+    type: BINARY
   - file: "icon-bmp/notification-large/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_large
+    type: BINARY
   # Notification Medium
   - file: "icon-bmp/notification-med/dishwasher-alert.bmp"
     id: dishwasher_alert_med
+    type: BINARY
   - file: "icon-bmp/notification-med/dog-bowl.bmp"
     id: dog_bowl_med
+    type: BINARY
   - file: "icon-bmp/notification-med/dump-truck.bmp"
     id: dump_truck_med
+    type: BINARY
   - file: "icon-bmp/notification-med/recycle.bmp"
     id: recycle_med
+    type: BINARY
   - file: "icon-bmp/notification-med/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_med
+    type: BINARY
   - file: "icon-bmp/notification-med/trash-can-outline.bmp"
     id: trash_can_outline_med
+    type: BINARY
   - file: "icon-bmp/notification-med/washing-machine-alert.bmp"
     id: washing_machine_alert_med
+    type: BINARY
   - file: "icon-bmp/notification-med/wifi-alert.bmp"
     id: wifi_alert_med
+    type: BINARY
   - file: "icon-bmp/notification-med/battery-low.bmp"
     id: battery_low_med
+    type: BINARY
   - file: "icon-bmp/notification-med/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_med
+    type: BINARY
   # Notification Small
   - file: "icon-bmp/notification-small/dishwasher-alert.bmp"
     id: dishwasher_alert_small
+    type: BINARY
   - file: "icon-bmp/notification-small/dog-bowl.bmp"
     id: dog_bowl_small
+    type: BINARY
   - file: "icon-bmp/notification-small/dump-truck.bmp"
     id: dump_truck_small
+    type: BINARY
   - file: "icon-bmp/notification-small/recycle.bmp"
     id: recycle_small
+    type: BINARY
   - file: "icon-bmp/notification-small/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_small
+    type: BINARY
   - file: "icon-bmp/notification-small/trash-can-outline.bmp"
     id: trash_can_outline_small
+    type: BINARY
   - file: "icon-bmp/notification-small/washing-machine-alert.bmp"
     id: washing_machine_alert_small
+    type: BINARY
   - file: "icon-bmp/notification-small/wifi-alert.bmp"
     id: wifi_alert_small
+    type: BINARY
   - file: "icon-bmp/notification-small/battery-low.bmp"
     id: battery_low_small
+    type: BINARY
   - file: "icon-bmp/notification-small/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_small
+    type: BINARY
   # Other icons
   - file: "icon-bmp/weather-small/wind-small.bmp"
     id: wind_small
+    type: BINARY
   - file: "icon-bmp/weather-small/water-percent.bmp"
     id: humidity_small
+    type: BINARY
   - file: "icon-bmp/weather-small/rain-small.bmp"
     id: rain_small
+    type: BINARY
   - file: "icon-bmp/wifi-qrcode.bmp"
     id: wifi_qr
+    type: BINARY
   - file: "icon-bmp/events/calendar.bmp"
     id: event_title
+    type: BINARY
   - file: "icon-bmp/wifi-lock.bmp"
     id: wifi_title
+    type: BINARY
   - file: "icon-bmp/home-floor-1.bmp"
     id: home_floor_1
+    type: BINARY
   - file: "icon-bmp/home-floor-2.bmp"
     id: home_floor_2
+    type: BINARY
   - file: "icon-bmp/home-floor-b.bmp"
     id: home_floor_b
+    type: BINARY
   - file: "icon-bmp/weather-small/thermometer.bmp"
     id: thermometer_small
+    type: BINARY
 
 font:
   - file: "RobotoCondensed-Bold.ttf"
