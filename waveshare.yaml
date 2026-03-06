@@ -138,7 +138,9 @@ http_request:
 
 ota:
   - platform: esphome
-    safe_mode: false
+
+safe_mode:
+  disabled: true
 
 switch:
   - platform: gpio
