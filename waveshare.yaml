@@ -1,5 +1,5 @@
 substitutions:
-  ha_base_url: http://192.168.1.1:8123
+  ha_base_url: !secret ha_base_url
 
 esphome:
   name: waveshare_display
@@ -122,8 +122,8 @@ esphome:
             - switch.turn_on: tpl5111_done
 
 wifi:
-  ssid: "ssid"
-  password: "password"
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
   fast_connect: true
 
 # Enable logging
