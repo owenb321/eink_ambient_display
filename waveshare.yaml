@@ -137,7 +137,8 @@ http_request:
   timeout: 10s
 
 ota:
-  safe_mode: false
+  - platform: esphome
+    safe_mode: false
 
 switch:
   - platform: gpio
