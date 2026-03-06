@@ -9,17 +9,87 @@ esphome:
     priority: -100
     then:
       - component.update: sntp_time
-      - wait_until:
-          condition:
-            mqtt.connected:
-          timeout: 60s
-      # Turn off if mqtt connection isn't established
-      - if:
-          condition:
-            not:
-              mqtt.connected:
-          then:
-            - switch.turn_on: tpl5111_done
+      - http_request.post:
+          url: http://192.168.1.1:8123/api/template
+          capture_response: true
+          request_headers:
+            Authorization: !secret ha_token
+            Content-Type: application/json
+          json:
+            template: >-
+              {{ {
+                'temp': states('sensor.openweathermap_temperature') | float(0),
+                'humidity': states('sensor.openweathermap_humidity') | float(0),
+                'forecast_high': states('sensor.forecast_high') | float(0),
+                'forecast_low': states('sensor.forecast_low') | float(0),
+                'wind_bearing': states('sensor.openweathermap_wind_bearing') | float(0),
+                'wind_speed': states('sensor.openweathermap_wind_speed') | float(0),
+                'rain_daily': states('sensor.rain_daily') | float(0),
+                'weather_condition': states('sensor.current_weather_condition_num') | float(-1),
+                'upstairs_temp': states('sensor.upstairs_average_temperature') | float(0),
+                'downstairs_temp': states('sensor.downstairs_average_temperature') | float(0),
+                'basement_temp': states('sensor.basement_temperature_sensor') | float(0),
+                'upstairs_humidity': states('sensor.bedroom_humidity_sensor') | float(0),
+                'downstairs_humidity': states('sensor.family_room_humidity_sensor') | float(0),
+                'basement_humidity': states('sensor.basement_humidity_sensor') | float(0),
+                'ota_mode': is_state('input_boolean.waveshare_ota_mode', 'on'),
+                'sleep_mode': is_state('input_boolean.waveshare_sleep_mode', 'on'),
+                'show_qr_code': is_state('input_boolean.waveshare_show_qr_code', 'on'),
+                'show_indoor_temp': is_state('input_boolean.waveshare_show_indoor_temp', 'on'),
+                'event_1_date': states('sensor.upcoming_event_1_date'),
+                'event_1_name': states('sensor.upcoming_event_1_name'),
+                'event_1_icon': states('sensor.upcoming_event_1_icon'),
+                'event_2_date': states('sensor.upcoming_event_2_date'),
+                'event_2_name': states('sensor.upcoming_event_2_name'),
+                'event_2_icon': states('sensor.upcoming_event_2_icon'),
+                'event_3_date': states('sensor.upcoming_event_3_date'),
+                'event_3_name': states('sensor.upcoming_event_3_name'),
+                'event_3_icon': states('sensor.upcoming_event_3_icon'),
+                'forecast_conditions': states('sensor.forecast_condition_nums'),
+                'notification_string': states('sensor.epaper_notifications')
+              } | tojson }}
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code != 200) {
+                    id(tpl5111_done).turn_on();
+                    return;
+                  }
+                  json::parse_json(body, [](JsonObject root) -> bool {
+                    id(outdoor_temperature).publish_state(root["temp"].as<float>());
+                    id(outdoor_humidity).publish_state(root["humidity"].as<float>());
+                    id(forecast_high).publish_state(root["forecast_high"].as<float>());
+                    id(forecast_low).publish_state(root["forecast_low"].as<float>());
+                    id(wind_bearing).publish_state(root["wind_bearing"].as<float>());
+                    id(wind_speed).publish_state(root["wind_speed"].as<float>());
+                    id(rain_daily).publish_state(root["rain_daily"].as<float>());
+                    id(weather_condition).publish_state(root["weather_condition"].as<float>());
+                    id(upstairs_temperature).publish_state(root["upstairs_temp"].as<float>());
+                    id(downstairs_temperature).publish_state(root["downstairs_temp"].as<float>());
+                    id(basement_temperature).publish_state(root["basement_temp"].as<float>());
+                    id(upstairs_humidity).publish_state(root["upstairs_humidity"].as<float>());
+                    id(downstairs_humidity).publish_state(root["downstairs_humidity"].as<float>());
+                    id(basement_humidity).publish_state(root["basement_humidity"].as<float>());
+                    id(ota_mode).publish_state(root["ota_mode"].as<bool>());
+                    id(sleep_mode).publish_state(root["sleep_mode"].as<bool>());
+                    id(show_qr_code).publish_state(root["show_qr_code"].as<bool>());
+                    id(show_indoor_temp).publish_state(root["show_indoor_temp"].as<bool>());
+                    id(event_1_date).publish_state(root["event_1_date"].as<std::string>());
+                    id(event_1_name).publish_state(root["event_1_name"].as<std::string>());
+                    id(event_1_icon).publish_state(root["event_1_icon"].as<std::string>());
+                    id(event_2_date).publish_state(root["event_2_date"].as<std::string>());
+                    id(event_2_name).publish_state(root["event_2_name"].as<std::string>());
+                    id(event_2_icon).publish_state(root["event_2_icon"].as<std::string>());
+                    id(event_3_date).publish_state(root["event_3_date"].as<std::string>());
+                    id(event_3_name).publish_state(root["event_3_name"].as<std::string>());
+                    id(event_3_icon).publish_state(root["event_3_icon"].as<std::string>());
+                    id(forecast_conditions).publish_state(root["forecast_conditions"].as<std::string>());
+                    id(notification_string).publish_state(root["notification_string"].as<std::string>());
+                    return true;
+                  });
+          on_error:
+            then:
+              - switch.turn_on: tpl5111_done
       # Wait for some valid temp data
       - wait_until:
           sensor.in_range:
@@ -27,6 +97,15 @@ esphome:
             above: -460
       - delay: 1s
       - component.update: battery_voltage
+      - lambda: |-
+          // Add battery-low notification locally if voltage is below threshold
+          if (id(battery_voltage).state < 3.35) {
+            bool already_present = false;
+            for (int n : id(notification_nums)) {
+              if (n == 8) { already_present = true; break; }
+            }
+            if (!already_present) id(notification_nums).push_back(8);
+          }
       - wait_until:
           time.has_time:
       - component.update: epaper_display
@@ -48,13 +127,9 @@ wifi:
 logger:
   level: DEBUG
 
-# Using MQTT instead of the Home Assistant API
-#   since it grabs the data after waking much faster
-mqtt:
-  broker: 192.168.1.1
-  discovery: false
-  topic_prefix: waveshare_display
-  
+http_request:
+  timeout: 10s
+
 ota:
   safe_mode: false
 
@@ -112,168 +187,118 @@ sensor:
     id: battery_voltage
     filters:
       - multiply: 2
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Outdoor Temperature"
     id: outdoor_temperature
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Outdoor Humidity"
     id: outdoor_humidity
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_humidity
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Forecast High"
     id: forecast_high
     internal: true
-    topic: waveshare_display/input/sensor/forecast_high
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Forecast Low"
     id: forecast_low
     internal: true
-    topic: waveshare_display/input/sensor/forecast_low
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Wind Bearing"
     id: wind_bearing
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_wind_bearing
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Wind Speed"
     id: wind_speed
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_wind_speed
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Rain Meter Daily"
     id: rain_daily
     internal: true
-    topic: waveshare_display/input/sensor/rain_daily
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Weather Condition"
     id: weather_condition
     internal: true
-    topic: waveshare_display/input/sensor/current_weather_condition_num
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Upstairs Temperature"
     id: upstairs_temperature
     internal: true
-    topic: waveshare_display/input/sensor/upstairs_average_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Downstairs Temperature"
     id: downstairs_temperature
     internal: true
-    topic: waveshare_display/input/sensor/downstairs_average_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Basement Temperature"
     id: basement_temperature
     internal: true
-    topic: waveshare_display/input/sensor/basement_temperature_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Upstairs Humidity"
     id: upstairs_humidity
     internal: true
-    topic: waveshare_display/input/sensor/bedroom_humidity_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Downstairs Humidity"
     id: downstairs_humidity
     internal: true
-    topic: waveshare_display/input/sensor/family_room_humidity_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Basement Humidity"
     id: basement_humidity
     internal: true
-    topic: waveshare_display/input/sensor/basement_humidity_sensor
+    update_interval: never
     
 text_sensor:
-  - platform: mqtt_subscribe
-    name: "OTA Mode Payload"
-    id: ota_mode_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_ota_mode
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: ota_mode
-            state: !lambda 'return id(ota_mode_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Sleep Mode Payload"
-    id: sleep_mode_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_sleep_mode
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: sleep_mode
-            state: !lambda 'return id(sleep_mode_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Show QR Code Payload"
-    id: show_qr_code_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_show_qr_code
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: show_qr_code
-            state: !lambda 'return id(show_qr_code_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Show Indoor Temp Payload"
-    id: show_indoor_temp_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_show_indoor_temp
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: show_indoor_temp
-            state: !lambda 'return id(show_indoor_temp_payload).state == "on";'
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Date"
     id: event_1_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Name"
     id: event_1_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Icon"
     id: event_1_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Date"
     id: event_2_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Name"
     id: event_2_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Icon"
     id: event_2_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Date"
     id: event_3_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Name"
     id: event_3_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Icon"
     id: event_3_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Forecast Conditions"
     id: forecast_conditions
     internal: true
-    topic: waveshare_display/input/sensor/forecast_condition_nums
     on_value:
       - if:
           condition:
@@ -284,11 +309,10 @@ text_sensor:
                 for(int f=0; f < 12; f += 2) {
                   id(forecast_nums).push_back( atoi(x.substr(f,2).c_str()) );
                 }
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Notification String"
     id: notification_string
     internal: true
-    topic: waveshare_display/input/sensor/epaper_notifications
     on_value:
       - if:
           condition:
