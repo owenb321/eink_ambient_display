@@ -3,8 +3,6 @@ substitutions:
 
 esphome:
   name: waveshare_display
-  platform: ESP32
-  board: featheresp32
   includes:
     # Load in std libs (map, vector)
     - OtherLibs.h
@@ -120,6 +118,11 @@ esphome:
             binary_sensor.is_off: ota_mode
           then:
             - switch.turn_on: tpl5111_done
+
+esp32:
+  board: featheresp32
+  framework:
+    type: arduino
 
 wifi:
   ssid: !secret wifi_ssid
