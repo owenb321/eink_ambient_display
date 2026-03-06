@@ -691,7 +691,7 @@ display:
         {"11", "Nov"},
         {"12", "Dec"}
       };
-      std::map<std::string, esphome::display::Image*> event_icon_map = {
+      std::map<std::string, esphome::image::Image*> event_icon_map = {
         {"baby-carriage", baby_carriage},
         {"bone", bone},
         {"cake-variant", cake_variant},
@@ -713,7 +713,7 @@ display:
         {"taco", taco},
         {"turkey", turkey}
       };
-      esphome::display::Image* weather_icon_map[16] = {
+      esphome::image::Image* weather_icon_map[16] = {
         clear_night,
         cloudy,
         exceptional,
@@ -731,7 +731,7 @@ display:
         windy_variant,
         windy
       };
-      esphome::display::Image* small_weather_icon_map[16] = {
+      esphome::image::Image* small_weather_icon_map[16] = {
         clear_night_small,
         cloudy_small,
         exceptional_small,
@@ -750,7 +750,7 @@ display:
         windy_small
       };
       #define notification_type_count 10
-      esphome::display::Image* notification_icon_map[notification_type_count*3] = {
+      esphome::image::Image* notification_icon_map[notification_type_count*3] = {
         trash_can_outline_large,
         dump_truck_large,
         recycle_large,
@@ -1072,7 +1072,7 @@ display:
           downstairs_humidity,
           basement_humidity
         };
-        esphome::display::Image* indoor_climate_icons[3] {
+        esphome::image::Image* indoor_climate_icons[3] {
           home_floor_2,
           home_floor_1,
           home_floor_b
