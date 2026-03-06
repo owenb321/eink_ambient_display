@@ -155,6 +155,7 @@ switch:
     pin:
       number: 21
       inverted: yes
+      ignore_pin_validation_error: true
     id: reset_switch
     internal: true
     name: "Display Reset Pin"
@@ -672,7 +673,9 @@ display:
     cs_pin: 22
     dc_pin: 23
     busy_pin: 4
-    reset_pin: 21
+    reset_pin:
+      number: 21
+      ignore_pin_validation_error: true
     model: 7.50inV2
     spi_id: waveshare_spi
     update_interval: never
