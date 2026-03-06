@@ -147,18 +147,6 @@ switch:
     pin: 27
     id: tpl5111_done
     restore_mode: ALWAYS_OFF
-  # Epaper display doesn't turn back on
-  #   after sleep while on lipo power 
-  #   unless this switch is defined.
-  #   Not sure why!
-  - platform: gpio
-    pin:
-      number: 21
-      inverted: yes
-      ignore_pin_validation_error: true
-    id: reset_switch
-    internal: true
-    name: "Display Reset Pin"
 
 time:
   - platform: sntp
@@ -673,9 +661,7 @@ display:
     cs_pin: 22
     dc_pin: 23
     busy_pin: 4
-    reset_pin:
-      number: 21
-      ignore_pin_validation_error: true
+    reset_pin: 21
     model: 7.50inV2
     spi_id: waveshare_spi
     update_interval: never
