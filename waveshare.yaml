@@ -9,7 +9,9 @@ esphome:
   on_boot:
     priority: -100
     then:
-      - component.update: sntp_time
+      - wait_until:
+          wifi.connected:
+      - lambda: ESP_LOGI("ha_fetch", "Sending POST to HA...");
       - http_request.post:
           url: ${ha_base_url}/api/template
           capture_response: true
@@ -52,7 +54,10 @@ esphome:
           on_response:
             then:
               - lambda: |-
+                  ESP_LOGI("ha_fetch", "HTTP response status: %d", response->status_code);
+                  ESP_LOGI("ha_fetch", "Body: %.500s", body.c_str());
                   if (response->status_code != 200) {
+                    ESP_LOGE("ha_fetch", "Non-200 response, giving up");
                     id(tpl5111_done).turn_on();
                     return;
                   }
@@ -90,6 +95,8 @@ esphome:
                   });
           on_error:
             then:
+              - lambda: |-
+                  ESP_LOGE("ha_fetch", "HTTP request failed (connection error)");
               - switch.turn_on: tpl5111_done
       # Wait for some valid temp data
       - wait_until:
@@ -132,6 +139,9 @@ wifi:
 # Enable logging
 logger:
   level: DEBUG
+
+api:
+  reboot_timeout: 0s
 
 http_request:
   timeout: 10s
@@ -814,7 +824,7 @@ display:
         gauge_center_y = gauge_center_y_higher;
       }
       if (weather_condition_idx >= 0 && weather_condition_idx < 16)
-        it.image(weather_condition_x, weather_condition_y, id(&weather_icon_map[(int)weather_condition_idx]));
+        it.image(weather_condition_x, weather_condition_y, id(&weather_icon_map[(int)weather_condition_idx]), Color::WHITE, Color::BLACK);
 
       #define forecast_icon_side 32
       #define forecasts_radius 20
@@ -834,7 +844,7 @@ display:
         #define forecast_condition_num forecast_vector[i]
 
         if (forecast_condition_num >= 0 && forecast_condition_num < 16) {
-          it.image(forecast_icon_x, forecast_icon_y, id(&small_weather_icon_map[forecast_condition_num]));
+          it.image(forecast_icon_x, forecast_icon_y, id(&small_weather_icon_map[forecast_condition_num]), Color::WHITE, Color::BLACK);
         }
 
         it.circle(forecast_x, forecasts_y, forecasts_radius);
@@ -852,13 +862,13 @@ display:
       #define humidity_gauge_center_x 76
       it.filled_circle(humidity_gauge_center_x, gauge_center_y, gauge_radius, COLOR_ON);
       it.filled_circle(humidity_gauge_center_x, gauge_center_y, gauge_radius-gauge_thickness, COLOR_OFF);
-      it.image(humidity_gauge_center_x - 11, gauge_icon_height, id(humidity_small));
+      it.image(humidity_gauge_center_x - 11, gauge_icon_height, id(humidity_small), Color::WHITE, Color::BLACK);
 
       // Rain gauge
       #define rain_gauge_center_x 200
       it.filled_circle(rain_gauge_center_x, gauge_center_y, gauge_radius, COLOR_ON);
       it.filled_circle(rain_gauge_center_x, gauge_center_y, gauge_radius-gauge_thickness, COLOR_OFF);
-      it.image(rain_gauge_center_x - 11, gauge_icon_height, id(rain_small));
+      it.image(rain_gauge_center_x - 11, gauge_icon_height, id(rain_small), Color::WHITE, Color::BLACK);
 
       // Wind gauge
       #define wind_gauge_center_x 324
@@ -872,7 +882,7 @@ display:
         it.line(wind_gauge_center_x, gauge_center_y, wind_gauge_center_x+bearing_x, gauge_center_y+bearing_y);
       it.filled_circle(wind_gauge_center_x, gauge_center_y, gauge_radius-gauge_thickness-4, COLOR_OFF);
       // Wind Symbol
-      it.image(wind_gauge_center_x - 14, gauge_icon_height, id(wind_small));
+      it.image(wind_gauge_center_x - 14, gauge_icon_height, id(wind_small), Color::WHITE, Color::BLACK);
 
       char* current_temp;
       char* high_low_temps;
@@ -960,8 +970,8 @@ display:
       #define wifi_icon_top_margin_y (wifi_icon_top_y-4)
 
       if(id(show_qr_code).state) {
-        it.image(wifi_icon_left_y, wifi_icon_top_y, id(wifi_title));
-        it.image(it.get_width()-qr_code_side, it.get_height()-qr_code_side, id(wifi_qr));
+        it.image(wifi_icon_left_y, wifi_icon_top_y, id(wifi_title), Color::WHITE, Color::BLACK);
+        it.image(it.get_width()-qr_code_side, it.get_height()-qr_code_side, id(wifi_qr), Color::WHITE, Color::BLACK);
         // Divider line left of QR
         it.line(wifi_box_vertical_line_x, wifi_icon_top_margin_y, wifi_box_vertical_line_x, it.get_height());
       }
@@ -992,7 +1002,7 @@ display:
       #define event_first_item_top_y (screen_height - qr_code_side)
       #define event_item_y_spacing ((((screen_height - event_first_item_top_y) - event_icon_side_length*3 - 12)/2) + event_icon_side_length)
 
-      it.image(event_title_icon_x, wifi_icon_top_y, id(event_title));
+      it.image(event_title_icon_x, wifi_icon_top_y, id(event_title), Color::WHITE, Color::BLACK);
 
       esphome::text_sensor::TextSensor* event_dates[3] = {
         event_1_date,
@@ -1027,7 +1037,7 @@ display:
         int event_text_center_y = (event_item_top_y + (event_icon_side_length/2));
         // Ensure icon is in the map first
         if(event_icon_map.count(evt_icon_str)) {
-          it.image(event_item_left_x, event_item_top_y, id(&event_icon_map[evt_icon_str]));
+          it.image(event_item_left_x, event_item_top_y, id(&event_icon_map[evt_icon_str]), Color::WHITE, Color::BLACK);
         }  
         if(evt_date_str.length() == 5) {    
           if(month_map.count(evt_date_str.substr(0,2))) {
@@ -1059,8 +1069,8 @@ display:
       #define climate_icon_top_y 8
 
       if (id(show_indoor_temp).state) {
-        it.image(temp_icon_left_x, climate_icon_top_y, id(thermometer_small));
-        it.image(humidity_icon_left_x, climate_icon_top_y, id(humidity_small));
+        it.image(temp_icon_left_x, climate_icon_top_y, id(thermometer_small), Color::WHITE, Color::BLACK);
+        it.image(humidity_icon_left_x, climate_icon_top_y, id(humidity_small), Color::WHITE, Color::BLACK);
 
         esphome::sensor::Sensor* indoor_temps[3] {
           upstairs_temperature,
@@ -1080,7 +1090,7 @@ display:
 
         for (int k=0; k<3; k++) {
           #define floor_item_current_top_y (floor_icon_top_y + floor_icon_y_spacing*k)
-          it.image(floor_icon_left_x, floor_item_current_top_y, id(&indoor_climate_icons[k]));
+          it.image(floor_icon_left_x, floor_item_current_top_y, id(&indoor_climate_icons[k]), Color::WHITE, Color::BLACK);
           char* floor_temp;
           asprintf(&floor_temp, "%.0f", id(&indoor_temps[k])->state);
           char* floor_humidity;
@@ -1142,7 +1152,7 @@ display:
           int icon_x = (notification_area_left_x + (notification_area_width - row_width)/2);
           for (int m = start_icon_idx; m < start_icon_idx + row_icon_count; m++) {
             #define notification_icon_image id(&notification_icon_map[notification_vector[m] + notification_icon_map_idx_skip])
-            it.image(icon_x, icon_y, notification_icon_image);
+            it.image(icon_x, icon_y, notification_icon_image, Color::WHITE, Color::BLACK);
             icon_x += icon_size + notification_icon_x_margin;
           }
           icon_y += icon_size + notification_icon_y_margin;
