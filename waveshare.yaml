@@ -57,8 +57,14 @@ esphome:
                   ESP_LOGI("ha_fetch", "HTTP response status: %d", response->status_code);
                   ESP_LOGI("ha_fetch", "Body: %.500s", body.c_str());
                   if (response->status_code != 200) {
-                    ESP_LOGE("ha_fetch", "Non-200 response, giving up");
-                    id(tpl5111_done).turn_on();
+                    ESP_LOGE("ha_fetch", "Non-200 response: %d", response->status_code);
+                    if (id(last_ota_mode)) {
+                      ESP_LOGI("ha_fetch", "Last OTA mode ON, staying awake");
+                      id(ota_mode).publish_state(true);
+                      id(outdoor_temperature).publish_state(0);
+                    } else {
+                      id(tpl5111_done).turn_on();
+                    }
                     return;
                   }
                   json::parse_json(body, [](JsonObject root) -> bool {
@@ -76,7 +82,9 @@ esphome:
                     id(upstairs_humidity).publish_state(root["upstairs_humidity"].as<float>());
                     id(downstairs_humidity).publish_state(root["downstairs_humidity"].as<float>());
                     id(basement_humidity).publish_state(root["basement_humidity"].as<float>());
-                    id(ota_mode).publish_state(root["ota_mode"].as<bool>());
+                    bool ota = root["ota_mode"].as<bool>();
+                    id(last_ota_mode) = ota;
+                    id(ota_mode).publish_state(ota);
                     id(sleep_mode).publish_state(root["sleep_mode"].as<bool>());
                     id(show_qr_code).publish_state(root["show_qr_code"].as<bool>());
                     id(show_indoor_temp).publish_state(root["show_indoor_temp"].as<bool>());
@@ -97,7 +105,13 @@ esphome:
             then:
               - lambda: |-
                   ESP_LOGE("ha_fetch", "HTTP request failed (connection error)");
-              - switch.turn_on: tpl5111_done
+                  if (id(last_ota_mode)) {
+                    ESP_LOGI("ha_fetch", "Last OTA mode ON, staying awake");
+                    id(ota_mode).publish_state(true);
+                    id(outdoor_temperature).publish_state(0);
+                  } else {
+                    id(tpl5111_done).turn_on();
+                  }
       # Wait for some valid temp data
       - wait_until:
           sensor.in_range:
@@ -339,6 +353,10 @@ globals:
     type: std::vector<int>
   - id: notification_nums
     type: std::vector<int>
+  - id: last_ota_mode
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
 image:
   # Weather conditions
