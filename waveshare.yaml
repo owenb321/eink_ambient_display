@@ -109,12 +109,6 @@ esphome:
                   } else {
                     id(tpl5111_done).turn_on();
                   }
-      # Wait for some valid temp data
-      - wait_until:
-          sensor.in_range:
-            id: outdoor_temperature
-            above: -460
-      - delay: 1s
       - component.update: battery_voltage
       - lambda: |-
           // Add battery-low notification locally if voltage is below threshold
@@ -128,13 +122,23 @@ esphome:
       - wait_until:
           time.has_time:
       - component.update: epaper_display
-      # Wait for display update cycle
-      - delay: 6s
+      # The driver may time out before the display starts its visual refresh.
+      # Wait for BUSY to go low (refresh started), then high (refresh complete).
+      - wait_until:
+          condition:
+            binary_sensor.is_off: display_busy
+          timeout: 30s
+      - wait_until:
+          condition:
+            binary_sensor.is_on: display_busy
+          timeout: 30s
+      - delay: 500ms
       # Go back to sleep once display has updated
       - if:
           condition:
             binary_sensor.is_off: ota_mode
           then:
+            - lambda: global_preferences->sync();  # flush restore_value globals to NVS before power cut
             - switch.turn_on: tpl5111_done
 
 esp32:
@@ -175,6 +179,12 @@ time:
     timezone: America/New_York
 
 binary_sensor:
+  - platform: gpio
+    pin:
+      number: 4
+      allow_other_uses: true
+    id: display_busy
+    internal: true
   - platform: template
     name: "OTA Mode"
     id: ota_mode
@@ -780,7 +790,9 @@ display:
     id: epaper_display
     cs_pin: 22
     dc_pin: 23
-    busy_pin: 4
+    busy_pin:
+      number: 4
+      allow_other_uses: true
     reset_pin: 21
     model: 7.50inV2
     spi_id: waveshare_spi
