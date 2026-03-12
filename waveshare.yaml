@@ -48,7 +48,8 @@ esphome:
                 'event_3_name': states('sensor.upcoming_event_3_name'),
                 'event_3_icon': states('sensor.upcoming_event_3_icon'),
                 'forecast_conditions': states('sensor.forecast_condition_nums'),
-                'notification_string': states('sensor.epaper_notifications')
+                'notification_string': states('sensor.epaper_notifications'),
+                'timestamp': now().timestamp() | int
               } | tojson }}
           on_response:
             then:
@@ -96,6 +97,8 @@ esphome:
                     id(event_3_icon).publish_state(root["event_3_icon"].as<std::string>());
                     id(forecast_conditions).publish_state(root["forecast_conditions"].as<std::string>());
                     id(notification_string).publish_state(root["notification_string"].as<std::string>());
+                    struct timeval tv = { .tv_sec = root["timestamp"].as<time_t>(), .tv_usec = 0 };
+                    settimeofday(&tv, nullptr);
                     return true;
                   });
           on_error:
@@ -119,19 +122,7 @@ esphome:
             }
             if (!already_present) id(notification_nums).push_back(8);
           }
-      - wait_until:
-          time.has_time:
       - component.update: epaper_display
-      # The driver may time out before the display starts its visual refresh.
-      # Wait for BUSY to go low (refresh started), then high (refresh complete).
-      - wait_until:
-          condition:
-            binary_sensor.is_off: display_busy
-          timeout: 30s
-      - wait_until:
-          condition:
-            binary_sensor.is_on: display_busy
-          timeout: 30s
       - delay: 500ms
       # Go back to sleep once display has updated
       - if:
@@ -177,6 +168,9 @@ time:
   - platform: sntp
     id: sntp_time
     timezone: America/New_York
+    servers:
+      - 192.168.1.1
+      - 0.pool.ntp.org
 
 binary_sensor:
   - platform: gpio
@@ -185,6 +179,8 @@ binary_sensor:
       allow_other_uses: true
     id: display_busy
     internal: true
+  - platform: status
+    name: "ePaper Status"
   - platform: template
     name: "OTA Mode"
     id: ota_mode
@@ -207,6 +203,13 @@ binary_sensor:
     name: "Show Indoor Temp"
     id: show_indoor_temp
     internal: true
+  - platform: template
+    name: "ePaper Battery Low"
+    id: battery_low
+    device_class: battery
+    lambda: |-
+      if (id(battery_voltage).state < 3.35) return true;
+      return false;
 
 sensor:
   - platform: adc
@@ -793,6 +796,7 @@ display:
     busy_pin:
       number: 4
       allow_other_uses: true
+      inverted: true
     reset_pin: 21
     model: 7.50inV2
     spi_id: waveshare_spi
