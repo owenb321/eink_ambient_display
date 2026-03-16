@@ -12,10 +12,16 @@ ESPHome project using an e-paper display to show information meant for quick gla
 - [Adafruit 2500mah LiPo Battery](https://www.adafruit.com/product/328)
 
 ## Details
-This is a Home Assistant focused display that grabs sensor details from MQTT to optimize speed. An example of the Home Assistant config that this uses can be found [here](https://gist.github.com/owenb321/3a1caad7bbbfdebaf21a7f56c705fa58#file-epaper_sensors-yaml).
+This is a Home Assistant focused display that fetches sensor data via the Home Assistant REST API on each wake cycle.
 
-MQTT is used to expedite the update interval since the Home Assistant API takes up to a minute to provide new information. MQTT with persist flags allows ESPHome to pull the information immeditately upon waking up without connecting to the HA API first.
+On boot, the device makes a single `POST` to the HA `/api/template` endpoint with a Jinja2 template that returns all required sensor values as JSON in one request. This avoids the latency of the native HA API (which requires HA to discover and connect to the device) while still pulling current data directly from HA.
 
 The Waveshare display consumes power during the ESP32 deep sleep so the TPL5111 timer is used to cut power between update intervals to maximize battery life. Battery life with a 2500mah LiPo has been about 3 months in real world usage.
+
+## Configuration
+Copy `secrets.yaml.example` to `secrets.yaml` and fill in your values:
+- `wifi_ssid` / `wifi_password` — wireless network credentials
+- `ha_base_url` — Home Assistant base URL (e.g. `http://192.168.1.1:8123`)
+- `ha_token` — Home Assistant long-lived access token (`Bearer eyJ...`), generated under Profile → Security → Long-Lived Access Tokens
 
 The case is laser cut and can be screwed shut or just held together with the slot/tab design. SVG files for cutting are found in the [case directory](case)

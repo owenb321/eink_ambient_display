@@ -1,86 +1,186 @@
+substitutions:
+  ha_base_url: !secret ha_base_url
+
 esphome:
   name: waveshare_display
-  platform: ESP32
-  board: featheresp32
   includes:
     # Load in std libs (map, vector)
     - OtherLibs.h
   on_boot:
     priority: -100
     then:
-      - component.update: sntp_time
       - wait_until:
-          condition:
-            mqtt.connected:
-          timeout: 60s
-      # Turn off if mqtt connection isn't established
-      - if:
-          condition:
-            not:
-              mqtt.connected:
-          then:
-            - switch.turn_on: tpl5111_done
-      # Wait for some valid temp data
-      - wait_until:
-          sensor.in_range:
-            id: outdoor_temperature
-            above: -460
-      - delay: 1s
+          wifi.connected:
+      - http_request.post:
+          url: ${ha_base_url}/api/template
+          capture_response: true
+          request_headers:
+            Authorization: !secret ha_token
+            Content-Type: application/json
+          json:
+            template: >-
+              {{ {
+                'temp': states('sensor.openweathermap_temperature') | float(0),
+                'humidity': states('sensor.openweathermap_humidity') | float(0),
+                'forecast_high': states('sensor.forecast_high') | float(0),
+                'forecast_low': states('sensor.forecast_low') | float(0),
+                'wind_bearing': states('sensor.openweathermap_wind_bearing') | float(0),
+                'wind_speed': states('sensor.openweathermap_wind_speed') | float(0),
+                'rain_daily': states('sensor.rain_daily') | float(0),
+                'weather_condition': states('sensor.current_weather_condition_num') | float(-1),
+                'upstairs_temp': states('sensor.upstairs_average_temperature') | float(0),
+                'downstairs_temp': states('sensor.downstairs_average_temperature') | float(0),
+                'basement_temp': states('sensor.basement_temperature_sensor') | float(0),
+                'upstairs_humidity': states('sensor.bedroom_humidity_sensor') | float(0),
+                'downstairs_humidity': states('sensor.family_room_humidity_sensor') | float(0),
+                'basement_humidity': states('sensor.basement_humidity_sensor') | float(0),
+                'ota_mode': is_state('input_boolean.waveshare_ota_mode', 'on'),
+                'sleep_mode': is_state('input_boolean.waveshare_sleep_mode', 'on'),
+                'show_qr_code': is_state('input_boolean.waveshare_show_qr_code', 'on'),
+                'show_indoor_temp': is_state('input_boolean.waveshare_show_indoor_temp', 'on'),
+                'event_1_date': states('sensor.upcoming_event_1_date'),
+                'event_1_name': states('sensor.upcoming_event_1_name'),
+                'event_1_icon': states('sensor.upcoming_event_1_icon'),
+                'event_2_date': states('sensor.upcoming_event_2_date'),
+                'event_2_name': states('sensor.upcoming_event_2_name'),
+                'event_2_icon': states('sensor.upcoming_event_2_icon'),
+                'event_3_date': states('sensor.upcoming_event_3_date'),
+                'event_3_name': states('sensor.upcoming_event_3_name'),
+                'event_3_icon': states('sensor.upcoming_event_3_icon'),
+                'forecast_conditions': states('sensor.forecast_condition_nums'),
+                'notification_string': states('sensor.epaper_notifications'),
+                'timestamp': now().timestamp() | int
+              } | tojson }}
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code != 200) {
+                    ESP_LOGE("ha_fetch", "Non-200 response: %d", response->status_code);
+                    if (id(last_ota_mode)) {
+                      ESP_LOGI("ha_fetch", "Last OTA mode ON, staying awake");
+                      id(ota_mode).publish_state(true);
+                      id(outdoor_temperature).publish_state(0);
+                    } else {
+                      id(tpl5111_done).turn_on();
+                    }
+                    return;
+                  }
+                  json::parse_json(body, [](JsonObject root) -> bool {
+                    id(outdoor_temperature).publish_state(root["temp"].as<float>());
+                    id(outdoor_humidity).publish_state(root["humidity"].as<float>());
+                    id(forecast_high).publish_state(root["forecast_high"].as<float>());
+                    id(forecast_low).publish_state(root["forecast_low"].as<float>());
+                    id(wind_bearing).publish_state(root["wind_bearing"].as<float>());
+                    id(wind_speed).publish_state(root["wind_speed"].as<float>());
+                    id(rain_daily).publish_state(root["rain_daily"].as<float>());
+                    id(weather_condition).publish_state(root["weather_condition"].as<float>());
+                    id(upstairs_temperature).publish_state(root["upstairs_temp"].as<float>());
+                    id(downstairs_temperature).publish_state(root["downstairs_temp"].as<float>());
+                    id(basement_temperature).publish_state(root["basement_temp"].as<float>());
+                    id(upstairs_humidity).publish_state(root["upstairs_humidity"].as<float>());
+                    id(downstairs_humidity).publish_state(root["downstairs_humidity"].as<float>());
+                    id(basement_humidity).publish_state(root["basement_humidity"].as<float>());
+                    bool ota = root["ota_mode"].as<bool>();
+                    id(last_ota_mode) = ota;
+                    id(ota_mode).publish_state(ota);
+                    id(sleep_mode).publish_state(root["sleep_mode"].as<bool>());
+                    id(show_qr_code).publish_state(root["show_qr_code"].as<bool>());
+                    id(show_indoor_temp).publish_state(root["show_indoor_temp"].as<bool>());
+                    id(event_1_date).publish_state(root["event_1_date"].as<std::string>());
+                    id(event_1_name).publish_state(root["event_1_name"].as<std::string>());
+                    id(event_1_icon).publish_state(root["event_1_icon"].as<std::string>());
+                    id(event_2_date).publish_state(root["event_2_date"].as<std::string>());
+                    id(event_2_name).publish_state(root["event_2_name"].as<std::string>());
+                    id(event_2_icon).publish_state(root["event_2_icon"].as<std::string>());
+                    id(event_3_date).publish_state(root["event_3_date"].as<std::string>());
+                    id(event_3_name).publish_state(root["event_3_name"].as<std::string>());
+                    id(event_3_icon).publish_state(root["event_3_icon"].as<std::string>());
+                    id(forecast_conditions).publish_state(root["forecast_conditions"].as<std::string>());
+                    id(notification_string).publish_state(root["notification_string"].as<std::string>());
+                    struct timeval tv = { .tv_sec = root["timestamp"].as<time_t>(), .tv_usec = 0 };
+                    settimeofday(&tv, nullptr);
+                    return true;
+                  });
+          on_error:
+            then:
+              - lambda: |-
+                  ESP_LOGE("ha_fetch", "HTTP request failed (connection error)");
+                  if (id(last_ota_mode)) {
+                    ESP_LOGI("ha_fetch", "Last OTA mode ON, staying awake");
+                    id(ota_mode).publish_state(true);
+                    id(outdoor_temperature).publish_state(0);
+                  } else {
+                    id(tpl5111_done).turn_on();
+                  }
       - component.update: battery_voltage
-      - wait_until:
-          time.has_time:
+      - lambda: |-
+          // Add battery-low notification locally if voltage is below threshold
+          if (id(battery_voltage).state < 3.35) {
+            bool already_present = false;
+            for (int n : id(notification_nums)) {
+              if (n == 8) { already_present = true; break; }
+            }
+            if (!already_present) id(notification_nums).push_back(8);
+          }
       - component.update: epaper_display
-      # Wait for display update cycle
-      - delay: 6s
+      - delay: 500ms
       # Go back to sleep once display has updated
       - if:
           condition:
             binary_sensor.is_off: ota_mode
           then:
+            - lambda: global_preferences->sync();  # flush restore_value globals to NVS before power cut
             - switch.turn_on: tpl5111_done
 
+esp32:
+  board: featheresp32
+  framework:
+    type: arduino
+
 wifi:
-  ssid: "ssid"
-  password: "password"
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
   fast_connect: true
 
 # Enable logging
 logger:
   level: DEBUG
 
-# Using MQTT instead of the Home Assistant API
-#   since it grabs the data after waking much faster
-mqtt:
-  broker: 192.168.1.1
-  discovery: false
-  topic_prefix: waveshare_display
-  
+api:
+  reboot_timeout: 0s
+
+http_request:
+  timeout: 10s
+
 ota:
-  safe_mode: false
+  - platform: esphome
+
+safe_mode:
+  disabled: true
 
 switch:
   - platform: gpio
     pin: 27
     id: tpl5111_done
     restore_mode: ALWAYS_OFF
-  # Epaper display doesn't turn back on
-  #   after sleep while on lipo power 
-  #   unless this switch is defined.
-  #   Not sure why!
-  - platform: gpio
-    pin:
-      number: 21
-      inverted: yes
-    id: reset_switch
-    internal: true
-    name: "Display Reset Pin"
 
 time:
   - platform: sntp
     id: sntp_time
     timezone: America/New_York
+    servers:
+      - 192.168.1.1
+      - 0.pool.ntp.org
 
 binary_sensor:
+  - platform: gpio
+    pin:
+      number: 4
+      allow_other_uses: true
+    id: display_busy
+    internal: true
+  - platform: status
+    name: "ePaper Status"
   - platform: template
     name: "OTA Mode"
     id: ota_mode
@@ -103,177 +203,134 @@ binary_sensor:
     name: "Show Indoor Temp"
     id: show_indoor_temp
     internal: true
+  - platform: template
+    name: "ePaper Battery Low"
+    id: battery_low
+    device_class: battery
+    lambda: |-
+      if (id(battery_voltage).state < 3.35) return true;
+      return false;
 
 sensor:
   - platform: adc
     pin: A13
-    attenuation: 11db
+    attenuation: 12db
     name: "ePaper Battery Voltage"
     id: battery_voltage
     filters:
       - multiply: 2
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Outdoor Temperature"
     id: outdoor_temperature
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Outdoor Humidity"
     id: outdoor_humidity
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_humidity
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Forecast High"
     id: forecast_high
     internal: true
-    topic: waveshare_display/input/sensor/forecast_high
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Forecast Low"
     id: forecast_low
     internal: true
-    topic: waveshare_display/input/sensor/forecast_low
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Wind Bearing"
     id: wind_bearing
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_wind_bearing
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Wind Speed"
     id: wind_speed
     internal: true
-    topic: waveshare_display/input/sensor/openweathermap_wind_speed
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Rain Meter Daily"
     id: rain_daily
     internal: true
-    topic: waveshare_display/input/sensor/rain_daily
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Weather Condition"
     id: weather_condition
     internal: true
-    topic: waveshare_display/input/sensor/current_weather_condition_num
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Upstairs Temperature"
     id: upstairs_temperature
     internal: true
-    topic: waveshare_display/input/sensor/upstairs_average_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Downstairs Temperature"
     id: downstairs_temperature
     internal: true
-    topic: waveshare_display/input/sensor/downstairs_average_temperature
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Basement Temperature"
     id: basement_temperature
     internal: true
-    topic: waveshare_display/input/sensor/basement_temperature_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Upstairs Humidity"
     id: upstairs_humidity
     internal: true
-    topic: waveshare_display/input/sensor/bedroom_humidity_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Downstairs Humidity"
     id: downstairs_humidity
     internal: true
-    topic: waveshare_display/input/sensor/family_room_humidity_sensor
-  - platform: mqtt_subscribe
+    update_interval: never
+  - platform: template
     name: "Basement Humidity"
     id: basement_humidity
     internal: true
-    topic: waveshare_display/input/sensor/basement_humidity_sensor
+    update_interval: never
     
 text_sensor:
-  - platform: mqtt_subscribe
-    name: "OTA Mode Payload"
-    id: ota_mode_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_ota_mode
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: ota_mode
-            state: !lambda 'return id(ota_mode_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Sleep Mode Payload"
-    id: sleep_mode_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_sleep_mode
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: sleep_mode
-            state: !lambda 'return id(sleep_mode_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Show QR Code Payload"
-    id: show_qr_code_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_show_qr_code
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: show_qr_code
-            state: !lambda 'return id(show_qr_code_payload).state == "on";'
-  - platform: mqtt_subscribe
-    name: "Show Indoor Temp Payload"
-    id: show_indoor_temp_payload
-    internal: true
-    topic: waveshare_display/input/input_boolean/waveshare_show_indoor_temp
-    on_value:
-      then:
-        - binary_sensor.template.publish:
-            id: show_indoor_temp
-            state: !lambda 'return id(show_indoor_temp_payload).state == "on";'
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Date"
     id: event_1_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Name"
     id: event_1_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 1 Icon"
     id: event_1_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_1_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Date"
     id: event_2_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Name"
     id: event_2_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 2 Icon"
     id: event_2_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_2_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Date"
     id: event_3_date
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_date
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Name"
     id: event_3_name
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_name
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Upcoming Event 3 Icon"
     id: event_3_icon
     internal: true
-    topic: waveshare_display/input/sensor/upcoming_event_3_icon
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Forecast Conditions"
     id: forecast_conditions
     internal: true
-    topic: waveshare_display/input/sensor/forecast_condition_nums
     on_value:
       - if:
           condition:
@@ -284,11 +341,10 @@ text_sensor:
                 for(int f=0; f < 12; f += 2) {
                   id(forecast_nums).push_back( atoi(x.substr(f,2).c_str()) );
                 }
-  - platform: mqtt_subscribe
+  - platform: template
     name: "Notification String"
     id: notification_string
     internal: true
-    topic: waveshare_display/input/sensor/epaper_notifications
     on_value:
       - if:
           condition:
@@ -307,205 +363,399 @@ globals:
     type: std::vector<int>
   - id: notification_nums
     type: std::vector<int>
+  - id: last_ota_mode
+    type: bool
+    restore_value: true
+    initial_value: 'false'
 
 image:
   # Weather conditions
   - file: "icon-bmp/weather/clear-night.bmp"
     id: clear_night
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/cloudy.bmp"
     id: cloudy
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/exceptional.bmp"
     id: exceptional
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/fog.bmp"
     id: fog
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/hail.bmp"
     id: hail
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/lightning-rainy.bmp"
     id: lightning_rainy
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/lightning.bmp"
     id: lightning
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/partlycloudy-day.bmp"
     id: partlycloudy_day
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/partlycloudy-night.bmp"
     id: partlycloudy_night
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/pouring.bmp"
     id: pouring
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/rainy.bmp"
     id: rainy
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/snowy-rainy.bmp"
     id: snowy_rainy
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/snowy.bmp"
     id: snowy
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/sunny.bmp"
     id: sunny
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/windy-variant.bmp"
     id: windy_variant
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather/windy.bmp"
     id: windy
+    type: BINARY
+    invert_alpha: true
   # Small weather condition icons
   - file: "icon-bmp/weather-small/clear-night-small.bmp"
     id: clear_night_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/cloudy-small.bmp"
     id: cloudy_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/exceptional-small.bmp"
     id: exceptional_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/fog-small.bmp"
     id: fog_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/hail-small.bmp"
     id: hail_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/lightning-rainy-small.bmp"
     id: lightning_rainy_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/lightning-small.bmp"
     id: lightning_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/partlycloudy-day-small.bmp"
     id: partlycloudy_day_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/partlycloudy-night-small.bmp"
     id: partlycloudy_night_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/pouring-small.bmp"
     id: pouring_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/rainy-small.bmp"
     id: rainy_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/snowy-rainy-small.bmp"
     id: snowy_rainy_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/snowy-small.bmp"
     id: snowy_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/sunny-small.bmp"
     id: sunny_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/windy-variant-small.bmp"
     id: windy_variant_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/windy-small.bmp"
     id: windy_small
+    type: BINARY
+    invert_alpha: true
   # Event icons
   - file: "icon-bmp/events/baby-carriage.bmp"
     id: baby_carriage
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/bone.bmp"
     id: bone
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/cake-variant.bmp"
     id: cake_variant
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/calendar.bmp"
     id: calendar
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/clover.bmp"
     id: clover
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/egg-easter.bmp"
     id: egg_easter
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/flag.bmp"
     id: flag
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/football.bmp"
     id: football
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/halloween.bmp"
     id: halloween
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/heart-multiple.bmp"
     id: heart_multiple
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/heart.bmp"
     id: heart
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/history.bmp"
     id: history
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/history2.bmp"
     id: history2
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/microphone.bmp"
     id: microphone
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/mother-heart.bmp"
     id: mother_heart
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/mustache.bmp"
     id: mustache
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/party-popper.bmp"
     id: party_popper
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/pine-tree.bmp"
     id: pine_tree
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/shield-star.bmp"
     id: shield_star
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/shovel.bmp"
     id: shovel
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/star.bmp"
     id: star
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/taco.bmp"
     id: taco
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/turkey.bmp"
     id: turkey
+    type: BINARY
+    invert_alpha: true
   # Notification Large
   - file: "icon-bmp/notification-large/dishwasher-alert.bmp"
     id: dishwasher_alert_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/dog-bowl.bmp"
     id: dog_bowl_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/dump-truck.bmp"
     id: dump_truck_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/recycle.bmp"
     id: recycle_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/trash-can-outline.bmp"
     id: trash_can_outline_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/washing-machine-alert.bmp"
     id: washing_machine_alert_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/wifi-alert.bmp"
     id: wifi_alert_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/battery-low.bmp"
     id: battery_low_large
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-large/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_large
+    type: BINARY
+    invert_alpha: true
   # Notification Medium
   - file: "icon-bmp/notification-med/dishwasher-alert.bmp"
     id: dishwasher_alert_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/dog-bowl.bmp"
     id: dog_bowl_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/dump-truck.bmp"
     id: dump_truck_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/recycle.bmp"
     id: recycle_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/trash-can-outline.bmp"
     id: trash_can_outline_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/washing-machine-alert.bmp"
     id: washing_machine_alert_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/wifi-alert.bmp"
     id: wifi_alert_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/battery-low.bmp"
     id: battery_low_med
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-med/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_med
+    type: BINARY
+    invert_alpha: true
   # Notification Small
   - file: "icon-bmp/notification-small/dishwasher-alert.bmp"
     id: dishwasher_alert_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/dog-bowl.bmp"
     id: dog_bowl_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/dump-truck.bmp"
     id: dump_truck_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/recycle.bmp"
     id: recycle_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/robot-vacuum-variant.bmp"
     id: robot_vacuum_variant_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/trash-can-outline.bmp"
     id: trash_can_outline_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/washing-machine-alert.bmp"
     id: washing_machine_alert_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/wifi-alert.bmp"
     id: wifi_alert_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/battery-low.bmp"
     id: battery_low_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/notification-small/tumble-dryer-alert.bmp"
     id: tumble_dryer_alert_small
+    type: BINARY
+    invert_alpha: true
   # Other icons
   - file: "icon-bmp/weather-small/wind-small.bmp"
     id: wind_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/water-percent.bmp"
     id: humidity_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/rain-small.bmp"
     id: rain_small
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/wifi-qrcode.bmp"
     id: wifi_qr
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/events/calendar.bmp"
     id: event_title
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/wifi-lock.bmp"
     id: wifi_title
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/home-floor-1.bmp"
     id: home_floor_1
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/home-floor-2.bmp"
     id: home_floor_2
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/home-floor-b.bmp"
     id: home_floor_b
+    type: BINARY
+    invert_alpha: true
   - file: "icon-bmp/weather-small/thermometer.bmp"
     id: thermometer_small
+    type: BINARY
+    invert_alpha: true
 
 font:
   - file: "RobotoCondensed-Bold.ttf"
@@ -543,7 +793,10 @@ display:
     id: epaper_display
     cs_pin: 22
     dc_pin: 23
-    busy_pin: 4
+    busy_pin:
+      number: 4
+      allow_other_uses: true
+      inverted: true
     reset_pin: 21
     model: 7.50inV2
     spi_id: waveshare_spi
@@ -574,7 +827,7 @@ display:
         {"11", "Nov"},
         {"12", "Dec"}
       };
-      std::map<std::string, esphome::display::Image*> event_icon_map = {
+      std::map<std::string, esphome::image::Image*> event_icon_map = {
         {"baby-carriage", baby_carriage},
         {"bone", bone},
         {"cake-variant", cake_variant},
@@ -596,7 +849,7 @@ display:
         {"taco", taco},
         {"turkey", turkey}
       };
-      esphome::display::Image* weather_icon_map[16] = {
+      esphome::image::Image* weather_icon_map[16] = {
         clear_night,
         cloudy,
         exceptional,
@@ -614,7 +867,7 @@ display:
         windy_variant,
         windy
       };
-      esphome::display::Image* small_weather_icon_map[16] = {
+      esphome::image::Image* small_weather_icon_map[16] = {
         clear_night_small,
         cloudy_small,
         exceptional_small,
@@ -633,7 +886,7 @@ display:
         windy_small
       };
       #define notification_type_count 10
-      esphome::display::Image* notification_icon_map[notification_type_count*3] = {
+      esphome::image::Image* notification_icon_map[notification_type_count*3] = {
         trash_can_outline_large,
         dump_truck_large,
         recycle_large,
@@ -955,7 +1208,7 @@ display:
           downstairs_humidity,
           basement_humidity
         };
-        esphome::display::Image* indoor_climate_icons[3] {
+        esphome::image::Image* indoor_climate_icons[3] {
           home_floor_2,
           home_floor_1,
           home_floor_b
